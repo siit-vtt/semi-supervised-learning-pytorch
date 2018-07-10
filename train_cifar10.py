@@ -1,7 +1,6 @@
-# this code is modified from the pytorch example code: https://github.com/pytorch/examples/blob/master/imagenet/main.py
-# after the model is trained, you might use convert_model.py to remove the data parallel module to make the model as standalone weight.
-#
-# Bolei Zhou
+# this code is modified from the pytorch code: https://github.com/CSAILVision/places365
+# JH Kim
+#  
 
 import argparse
 import os
@@ -174,12 +173,16 @@ def main():
     criterion_mse = nn.MSELoss().cuda()
     criterions = (criterion, criterion_mse)
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
+    optimizer = torch.optim.Adam(model.parameters(), args.lr,
+                                betas=(0.9,0.999),
                                 weight_decay=args.weight_decay)
+    #optimizer = torch.optim.SGD(model.parameters(), args.lr,
+    #                            momentum=args.momentum,
+    #                            weight_decay=args.weight_decay)
 
     for epoch in range(args.start_epoch, args.epochs):
-        adjust_learning_rate(optimizer, epoch)
+        adjust_learning_rate_adam(optimizer, epoch)
+        #adjust_learning_rate(optimizer, epoch)
         
         # train for one epoch
         if args.model == 'baseline':
@@ -219,7 +222,7 @@ def main():
             'acc1_test' : acc1_test,
             'losses_test' : losses_test,
         }, is_best, args.arch.lower()+str(args.boundary), dirname=ckpt_dir)
-
+        
         
 
 def train(train_loader, model, criterions, optimizer, epoch):
@@ -437,12 +440,21 @@ class AverageMeter(object):
 
 
 def adjust_learning_rate(optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 at [100, 150, 200] epochs"""
+    """Sets the learning rate to the initial LR decayed by 10 at [150, 225, 300] epochs"""
     
     boundary = [150,225,300]
     lr = args.lr * 0.1 ** int(bisect.bisect_left(boundary, epoch))
     #print(epoch, lr, bisect.bisect_left(boundary, epoch))
     # lr = args.lr * (0.1 ** (epoch // 30))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+def adjust_learning_rate_adam(optimizer, epoch):
+    """Sets the learning rate to the initial LR decayed by 5 at [240] epochs"""
+    
+    boundary = [240]
+    lr = args.lr * 0.2 ** int(bisect.bisect_left(boundary, epoch))
+    #print(epoch, lr)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
