@@ -31,8 +31,9 @@ parser = argparse.ArgumentParser(description='PyTorch Places365 Training')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='wideresnet',
                     help='model architecture: '+ ' (default: wideresnet)')
 parser.add_argument('--model', '-m', metavar='MODEL', default='baseline',
-                    help='model: '+
-                        ' (default: baseline)')
+                    help='model: '+' (default: baseline)')
+parser.add_argument('--optim', '-o', metavar='OPTIM', default='sgd',
+                    help='optimizer: '+' (default: sgd)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=300, type=int, metavar='N',
@@ -98,10 +99,16 @@ def main():
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
-    ckpt_dir = args.ckpt+'_'+args.arch+'_'+args.model
+    if args.optim == 'sgd' or args.optim == 'adam':
+        pass
+    else:
+        print('Wrong Optimizer')
+        assert(False)
+        
+    ckpt_dir = args.ckpt+'_'+args.arch+'_'+args.model+'_'+args.optim
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
-
+    print(ckpt_dir)
     cudnn.benchmark = True
 
     # Data loading code
@@ -173,16 +180,20 @@ def main():
     criterion_mse = nn.MSELoss().cuda()
     criterions = (criterion, criterion_mse)
 
-    optimizer = torch.optim.Adam(model.parameters(), args.lr,
-                                betas=(0.9,0.999),
-                                weight_decay=args.weight_decay)
-    #optimizer = torch.optim.SGD(model.parameters(), args.lr,
-    #                            momentum=args.momentum,
-    #                            weight_decay=args.weight_decay)
+    if args.optim == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), args.lr,
+                                    betas=(0.9,0.999),
+                                    weight_decay=args.weight_decay)
+    elif args.optim == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), args.lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay)
 
     for epoch in range(args.start_epoch, args.epochs):
-        adjust_learning_rate_adam(optimizer, epoch)
-        #adjust_learning_rate(optimizer, epoch)
+        if args.optim == 'adam':
+            adjust_learning_rate_adam(optimizer, epoch)
+        elif args.optim == 'sgd':
+            adjust_learning_rate(optimizer, epoch)
         
         # train for one epoch
         if args.model == 'baseline':
