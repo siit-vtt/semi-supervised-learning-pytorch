@@ -22,6 +22,7 @@ import pdb
 import bisect
 
 import loader_cifar as cifar
+import loader_cifar_zca as cifar_zca
 import math
 from math import ceil
 import torch.nn.functional as F
@@ -34,6 +35,8 @@ parser.add_argument('--model', '-m', metavar='MODEL', default='baseline',
                     help='model: '+' (default: baseline)')
 parser.add_argument('--optim', '-o', metavar='OPTIM', default='sgd',
                     help='optimizer: '+' (default: sgd)')
+parser.add_argument('--preproc', '-pre', metavar='PRE', default='meanstd',
+                    help='image pre-processing: '+' (default: meanstd)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=300, type=int, metavar='N',
@@ -104,30 +107,51 @@ def main():
     else:
         print('Wrong Optimizer')
         assert(False)
+ 
+    if args.preproc == 'meanstd' or args.preproc == 'zca':
+        pass
+    else:
+        print('Not Implemented Pre-processing')
+        assert(False)
         
     ckpt_dir = args.ckpt+'_'+args.arch+'_'+args.model+'_'+args.optim
+    if args.preproc == 'zca': ckpt_dir = ckpt_dir + '_zca'
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
     print(ckpt_dir)
     cudnn.benchmark = True
 
     # Data loading code
-    dataloader = cifar.CIFAR10
-    num_classes = 10
-
-    normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                     std=[0.2023, 0.1994, 0.2010])
-    transform_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        normalize,
-    ])    
+    if args.preproc == 'meanstd':
+        dataloader = cifar.CIFAR10
+        num_classes = 10
+ 
+        normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+                                         std=[0.2023, 0.1994, 0.2010])
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ])
+ 
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            normalize,
+        ])    
+    elif args.preproc == 'zca':
+        dataloader = cifar_zca.CIFAR10
+        num_classes = 10
+ 
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ])
+ 
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+        ])
 
     labelset = dataloader(root='/tmp', split='label', download=True, transform=transform_train, boundary=args.boundary)
     unlabelset = dataloader(root='/tmp', split='unlabel', download=True, transform=transform_train, boundary=args.boundary)

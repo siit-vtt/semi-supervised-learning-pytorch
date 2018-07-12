@@ -29,21 +29,8 @@ class CIFAR10(data.Dataset):
             puts it in root directory. If dataset is already downloaded, it is not
             downloaded again.
     """
-    base_folder = 'cifar-10-batches-py'
-    url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
-    filename = "cifar-10-python.tar.gz"
-    tgz_md5 = 'c58f30108f718f92721af3b95e74349a'
-    train_list = [
-        ['data_batch_1', 'c99cafc152244af753f735de768cd75f'],
-        ['data_batch_2', 'd4bba439e000b95fd0a9bffe97cbabec'],
-        ['data_batch_3', '54ebc095f3ab1f0389bbae665268c751'],
-        ['data_batch_4', '634d18415352ddfa80567beed471001a'],
-        ['data_batch_5', '482c414d41f54cd18b22e5b47cb7c3cb'],
-    ]
-
-    test_list = [
-        ['test_batch', '40351d587109b95175f43aff81a1287e'],
-    ]
+       
+    data_file = 'cifar10_zca/cifar10_gcn_zca_v2.npz' 
     nclass = 10
     split_list = ['label', 'unlabel', 'valid', 'test']
 
@@ -60,33 +47,21 @@ class CIFAR10(data.Dataset):
             raise ValueError('Wrong split entered! Please use split="train" '
                              'or split="extra" or split="test"')
 
-        if download:
-            self.download()
-
-        if not self._check_integrity():
-            raise RuntimeError('Dataset not found or corrupted.' +
-                               ' You can use download=True to download it')
+        # load data
+        self.data = np.load(self.data_file)
+        #self.train_data_zca = self.data['train_x'].transpose(0,3,1,2)
+        #self.train_labels_zca = self.data['train_y']
+        #self.test_data_zca = self.data['test_x'].transpose(0,3,1,2)
+        #self.test_labels_zca = self.data['test_y']
 
         # now load the picked numpy arrays
         if self.split is 'label' or self.split is 'unlabel' or self.split is 'valid':
-            self.train_data = []
-            self.train_labels = []
-            for fentry in self.train_list:
-                f = fentry[0]
-                file = os.path.join(self.root, self.base_folder, f)
-                fo = open(file, 'rb')
-                if sys.version_info[0] == 2:
-                    entry = pickle.load(fo)
-                else:
-                    entry = pickle.load(fo, encoding='latin1')
-                self.train_data.append(entry['data'])
-                if 'labels' in entry:
-                    self.train_labels += entry['labels']
-                else:
-                    self.train_labels += entry['fine_labels']
-                fo.close()
-
-            self.train_data = np.concatenate(self.train_data)
+            
+            self.train_data = self.data['train_x'].astype(np.uint8).transpose(0,3,1,2)
+            #self.train_data = np.concatenate(self.train_data)
+            self.train_labels = self.data['train_y'].astype(int)
+            print(self.train_data.shape)
+            print(self.train_labels.shape)
             if boundary is not 0:
                 bidx = 5000 * boundary 
                 self.train_data = [self.train_data[bidx:],self.train_data[:bidx]]
@@ -127,7 +102,6 @@ class CIFAR10(data.Dataset):
                 self.train_data = self.train_data.reshape((len(train_data1), 3, 32, 32))
                 self.train_data = self.train_data.transpose((0, 2, 3, 1))  # convert to HWC
 
-                print(self.train_labels[0].type)
                 num_tr = self.train_data.shape[0]
                 #print(self.train_data1[:1,:1,:5,:5])
                 #print(self.train_labels1[:10])
@@ -164,21 +138,10 @@ class CIFAR10(data.Dataset):
                 #print(self.valid_labels[:10])
             
         elif self.split is 'test':
-            f = self.test_list[0][0]
-            file = os.path.join(self.root, self.base_folder, f)
-            fo = open(file, 'rb')
-            if sys.version_info[0] == 2:
-                entry = pickle.load(fo)
-            else:
-                entry = pickle.load(fo, encoding='latin1')
-            self.test_data = entry['data']
-            if 'labels' in entry:
-                self.test_labels = entry['labels']
-            else:
-                self.test_labels = entry['fine_labels']
-            fo.close()
-            self.test_data = self.test_data.reshape((10000, 3, 32, 32))
-            self.test_data = self.test_data.transpose((0, 2, 3, 1))  # convert to HWC
+            #self.test_data = self.test_data.reshape((10000, 3, 32, 32))
+            #self.test_data = self.test_data.transpose((0, 2, 3, 1))  # convert to HWC
+            self.test_data = self.data['test_x'].astype(np.uint8) 
+            self.test_labels = self.data['test_y'].astype(int) 
 
     def __getitem__(self, index):
         """
@@ -260,23 +223,6 @@ class CIFAR10(data.Dataset):
         fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
         return fmt_str
 
-
-class CIFAR100(CIFAR10):
-    """`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
-    This is a subclass of the `CIFAR10` Dataset.
-    """
-    base_folder = 'cifar-100-python'
-    url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
-    filename = "cifar-100-python.tar.gz"
-    tgz_md5 = 'eb9058c3a382ffc7106e4002c42a8d85'
-    train_list = [
-        ['train', '16019d7e3df5f24257cddd939b257f8d'],
-    ]
-
-    test_list = [
-        ['test', 'f0ef6b0ae62326f3e7ffdfab6717acfc'],
-    ]
-    nclass = 100
 
 
 if __name__ == '__main__':
