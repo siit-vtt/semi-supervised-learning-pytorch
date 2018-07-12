@@ -12,7 +12,8 @@ else:
 
 import torch.utils.data as data
 from torchvision.datasets.utils import download_url, check_integrity
-
+import torch
+import random
 
 class CIFAR10(data.Dataset):
     """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
@@ -57,7 +58,7 @@ class CIFAR10(data.Dataset):
         # now load the picked numpy arrays
         if self.split is 'label' or self.split is 'unlabel' or self.split is 'valid':
             
-            self.train_data = self.data['train_x'].astype(np.uint8).transpose(0,3,1,2)
+            self.train_data = self.data['train_x'].astype(np.float32).transpose(0,3,1,2)
             #self.train_data = np.concatenate(self.train_data)
             self.train_labels = self.data['train_y'].astype(int)
             print(self.train_data.shape)
@@ -140,7 +141,7 @@ class CIFAR10(data.Dataset):
         elif self.split is 'test':
             #self.test_data = self.test_data.reshape((10000, 3, 32, 32))
             #self.test_data = self.test_data.transpose((0, 2, 3, 1))  # convert to HWC
-            self.test_data = self.data['test_x'].astype(np.uint8) 
+            self.test_data = self.data['test_x'].astype(np.float32) 
             self.test_labels = self.data['test_y'].astype(int) 
 
     def __getitem__(self, index):
@@ -161,14 +162,31 @@ class CIFAR10(data.Dataset):
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        img = Image.fromarray(img)
+        #img = Image.fromarray(img)
         img1 = np.copy(img)
-        img1 = Image.fromarray(img1)
+        #img1 = Image.fromarray(img1)
 
-        if self.transform is not None:
-            img = self.transform(img)
-            img1 = self.transform(img1)
+        if self.split is 'label' or self.split is 'unlabel':
+            img = horizontal_flip(img, 0.5)
+            img = random_crop(img, 32)
+            img = img.copy()
+            img = torch.from_numpy(img)
+            img = img.permute(2,0,1)
+            #img = self.transform(img)
 
+            img1 = horizontal_flip(img1, 0.5)
+            img1 = random_crop(img1, 32)
+            img1 = img1.copy()
+            img1 = torch.from_numpy(img1)
+            img1 = img1.permute(2,0,1)
+            #img1 = self.transform(img1)
+        else:
+            img = torch.from_numpy(img)
+            img = img.permute(2,0,1)
+
+            img1 = torch.from_numpy(img1)
+            img1 = img1.permute(2,0,1)
+ 
         if self.target_transform is not None:
             target = self.target_transform(target)
 
@@ -224,6 +242,29 @@ class CIFAR10(data.Dataset):
         return fmt_str
 
 
+def horizontal_flip(image, rate=0.5):
+    if random.random() < rate:
+        #image = np.flip(image,1).copy()
+        image = image[:, ::-1, :]
+    return image
+
+def random_crop(image, crop_size, padding=4):
+    crop_size = check_size(crop_size)
+    image = np.pad(image,((padding,padding),(padding,padding),(0,0)),'constant',constant_values=0)
+    h, w, _ = image.shape
+    top = np.random.randint(0, h - crop_size[0])
+    left = np.random.randint(0, w - crop_size[1])
+    bottom = top + crop_size[0]
+    right = left + crop_size[1]
+    image = image[top:bottom, left:right, :]
+    return image
+
+def check_size(size):
+    if type(size) == int:
+        size = (size, size)
+    if type(size) != tuple:
+        raise TypeError('size is int or tuple')
+    return size
 
 if __name__ == '__main__':
 

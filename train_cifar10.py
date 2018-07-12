@@ -142,10 +142,11 @@ def main():
     elif args.preproc == 'zca':
         dataloader = cifar_zca.CIFAR10
         num_classes = 10
- 
+
+        # transform is implemented inside zca dataloader 
         transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
+            #transforms.RandomCrop(32, padding=4),
+            #transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
         ])
  
