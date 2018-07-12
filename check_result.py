@@ -20,16 +20,16 @@ for i in range(nckpt):
     path = os.path.join(fdir,fname+str(i)+'_latest.pth.tar')
     checkpoint = torch.load(path)
     print(path)
-    best_prec1 = checkpoint['best_test_prec1']
-    best_prec1_val = checkpoint['best_prec1']
-    print(best_prec1)
-    print(best_prec1_val)
+    best_prec1 = 100.0 - checkpoint['best_test_prec1']
+    best_prec1_val = 100.0 - checkpoint['best_prec1']
+    print('Test Error: ',best_prec1)
+    print('Val. Error: ',best_prec1_val)
     best_prec1s.append(best_prec1)
 
 best_prec1s = np.array(best_prec1s)
 bmean = np.around(np.mean(best_prec1s), decimals=2)
 bstd = np.around(np.std(best_prec1s), decimals=2)
-print('Best precision: %.2f(%.2f)'%(bmean,bstd))
+print('Best error rate: %.2f(%.2f)'%(bmean,bstd))
 #print('Best precision: ',bmean,'(',bstd,')')
 
 #for key, val in checkpoint.iteritems():
