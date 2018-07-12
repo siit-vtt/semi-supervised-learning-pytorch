@@ -165,19 +165,20 @@ class CIFAR10(data.Dataset):
         #img = Image.fromarray(img)
         img1 = np.copy(img)
         #img1 = Image.fromarray(img1)
-
         if self.split is 'label' or self.split is 'unlabel':
+            img = random_crop(img, 32, padding=2)
             img = horizontal_flip(img, 0.5)
-            img = random_crop(img, 32)
             img = img.copy()
             img = torch.from_numpy(img)
+            img = img + torch.randn_like(img) * 0.15
             img = img.permute(2,0,1)
             #img = self.transform(img)
 
+            img1 = random_crop(img1, 32, padding=2)
             img1 = horizontal_flip(img1, 0.5)
-            img1 = random_crop(img1, 32)
             img1 = img1.copy()
             img1 = torch.from_numpy(img1)
+            img1 = img1 + torch.randn_like(img1) * 0.15
             img1 = img1.permute(2,0,1)
             #img1 = self.transform(img1)
         else:
@@ -252,8 +253,8 @@ def random_crop(image, crop_size, padding=4):
     crop_size = check_size(crop_size)
     image = np.pad(image,((padding,padding),(padding,padding),(0,0)),'constant',constant_values=0)
     h, w, _ = image.shape
-    top = np.random.randint(0, h - crop_size[0])
-    left = np.random.randint(0, w - crop_size[1])
+    top = random.randrange(0, h - crop_size[0])
+    left = random.randrange(0, w - crop_size[1])
     bottom = top + crop_size[0]
     right = left + crop_size[1]
     image = image[top:bottom, left:right, :]
