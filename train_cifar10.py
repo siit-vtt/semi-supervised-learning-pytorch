@@ -26,6 +26,7 @@ import loader_cifar_zca as cifar_zca
 import math
 from math import ceil
 import torch.nn.functional as F
+from methods import train_sup, train_pi, validate
 
 
 parser = argparse.ArgumentParser(description='PyTorch Places365 Training')
@@ -67,13 +68,15 @@ os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
 
 best_prec1 = 0
 best_test_prec1 = 0
-acc1_tr, losses_tr, losses_et_tr, losses_kl_tr, losses_klf_tr = [], [], [], [], []
+acc1_tr, losses_tr = [], []
+losses_pi_tr = []
 acc1_val, losses_val, losses_et_val = [], [], []
 acc1_test, losses_test, losses_et_test = [], [], []
 
 def main():
     global args, best_prec1, best_test_prec1
-    global acc1_tr, losses_tr, losses_et_tr, losses_kl_tr, losses_klf_tr
+    global acc1_tr, losses_tr 
+    global losses_pi_tr
     global acc1_val, losses_val, losses_et_val
     global acc1_test, losses_test, losses_et_test
     args = parser.parse_args()
@@ -205,7 +208,8 @@ def main():
     # deifine loss function (criterion) and pptimizer
     criterion = nn.CrossEntropyLoss().cuda()
     criterion_mse = nn.MSELoss().cuda()
-    criterions = (criterion, criterion_mse)
+    criterion_kl = nn.KLDivLoss().cuda()
+    criterions = (criterion, criterion_mse, criterion_kl)
 
     if args.optim == 'adam':
         print('Using Adam optimizer')
@@ -230,15 +234,17 @@ def main():
         if args.model == 'baseline':
             print('Supervised Training')
             for i in range(10):
-                prec1_tr, loss_tr = train_sup(label_loader, model, criterions, optimizer, epoch)
+                prec1_tr, loss_tr = train_sup(label_loader, model, criterions, optimizer, epoch, args)
+        elif args.model == 'pi':
+            print('Pi model')
+            prec1_tr, loss_tr, loss_pi_tr = train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, args)
         else:
             print("Not Implemented ", args.model)
             assert(False)
-
-        # evaluate on validation set
         
-        prec1_val, loss_val = validate(val_loader, model, criterions, 'valid')
-        prec1_test, loss_test = validate(test_loader, model, criterions, 'test')
+        # evaluate on validation set        
+        prec1_val, loss_val = validate(val_loader, model, criterions, args, 'valid')
+        prec1_test, loss_test = validate(test_loader, model, criterions, args, 'test')
 
         # append values
         acc1_tr.append(prec1_tr)
@@ -247,6 +253,7 @@ def main():
         losses_val.append(loss_val)
         acc1_test.append(prec1_test)
         losses_test.append(loss_test)
+        if args.model=='pi': losses_pi_tr.append(loss_pi_tr)
 
         # remember best prec@1 and save checkpoint
         is_best = prec1_val > best_prec1
@@ -260,6 +267,7 @@ def main():
             'best_test_prec1' : best_test_prec1,
             'acc1_tr': acc1_tr,
             'losses_tr': losses_tr,
+            'losses_pi_tr': losses_pi_tr,
             'acc1_val': acc1_val,
             'losses_val': losses_val,
             'acc1_test' : acc1_test,
@@ -267,220 +275,12 @@ def main():
         }, is_best, args.arch.lower()+str(args.boundary), dirname=ckpt_dir)
         
         
-
-def train(train_loader, model, criterions, optimizer, epoch):
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
-    losses = AverageMeter()
-    losses_et = AverageMeter()
-    losses_kl = AverageMeter()
-    losses_klf = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
-
-    # weight anneal
-    '''
-    init_ep, end_ep, init_w, end_w = 40, 120, args.weight_mse, args.weight_mse
-    if epoch > end_ep:
-        weight_mse = end_w
-    elif epoch < init_ep:
-        weight_mse = init_w
-    else:
-        T = float(epoch - init_ep)/float(end_ep - init_ep)
-        #weight_mse = T * (end_w - init_w) + init_w #linear
-        weight_mse = (math.exp(-5.0 * (1.0 - T) * (1.0 - T))) * (end_w - init_w) + init_w #exp
-    #print(epoch, weight_mse)
-    '''
-    # switch to train mode
-    model.train()
-
-    criterion, criterion_mse = criterions
-    train_loader.dataset.midx=epoch%2
-
-    end = time.time()
-     
-    for i, (input, target, inputu, _) in enumerate(train_loader):
-        # measure data loading time
-        data_time.update(time.time() - end)
-        target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input)
-        target_var = torch.autograd.Variable(target)
-        # compute output
-        output = model(input_var)
-        
-        loss_ce = criterion(output, target_var)
-
-        loss = loss_ce
-
-        # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
-        losses.update(loss_ce.data[0], input.size(0))
-        top1.update(prec1[0], input.size(0))
-        top5.update(prec5[0], input.size(0))
-
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
-    
-    return top1.avg , losses.avg
-
-def train_sup(label_loader, model, criterions, optimizer, epoch):
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
-    losses = AverageMeter()
-    losses_et = AverageMeter()
-    losses_kl = AverageMeter()
-    losses_klf = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
-
-    # switch to train mode
-    model.train()
-
-    criterion, criterion_mse = criterions
-
-    end = time.time()
-
-    label_iter = iter(label_loader)     
-    for i in range(len(label_iter)):
-        input, target, _ = next(label_iter)
-        # measure data loading time
-        data_time.update(time.time() - end)
-        target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input)
-        target_var = torch.autograd.Variable(target)
-        # compute output
-        output = model(input_var)
-        
-        loss_ce = criterion(output, target_var)
-
-        loss = loss_ce
-
-        # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
-        losses.update(loss_ce.item(), input.size(0))
-        top1.update(prec1.item(), input.size(0))
-        top5.update(prec5.item(), input.size(0))
-
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(label_iter), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
-    
-    return top1.avg , losses.avg
-
-
-def validate(val_loader, model, criterions, mode = 'valid'):
-    batch_time = AverageMeter()
-    losses = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
-
-    # switch to evaluate mode
-    model.eval()
-    
-    criterion, criterion_mse = criterions
-
-    end = time.time()
-    with torch.no_grad():
-        for i, (input, target, _) in enumerate(val_loader):
-            target = target.cuda(async=True)
-            input_var = torch.autograd.Variable(input)
-            target_var = torch.autograd.Variable(target)
- 
-            # compute output
-            output = model(input_var)
-            softmax = torch.nn.LogSoftmax(dim=1)(output)
-            loss = criterion(output, target_var)
- 
-            # measure accuracy and record loss
-            prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
-            losses.update(loss.item(), input.size(0))
-            top1.update(prec1.item(), input.size(0))
-            top5.update(prec5.item(), input.size(0))
- 
-            # measure elapsed time
-            batch_time.update(time.time() - end)
-            end = time.time()
- 
-            if i % args.print_freq == 0:
-                if mode == 'test':
-                    print('Test: [{0}/{1}]\t'
-                          'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                          'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                          'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                           i, len(val_loader), batch_time=batch_time, loss=losses,
-                           top1=top1, top5=top5))
-                else:
-                    print('Valid: [{0}/{1}]\t'
-                          'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                          'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                          'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                           i, len(val_loader), batch_time=batch_time, loss=losses,
-                           top1=top1, top5=top5))
-
-    print(' ****** Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.3f} '
-          .format(top1=top1, top5=top5, loss=losses))
-
-    return top1.avg, losses.avg
-
-
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar', dirname='.'):
     fpath = os.path.join(dirname, filename + '_latest.pth.tar')
     torch.save(state, fpath)
     if is_best:
         bpath = os.path.join(dirname, filename + '_best.pth.tar')
         shutil.copyfile(fpath, bpath)
-
-
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 at [150, 225, 300] epochs"""
@@ -503,22 +303,7 @@ def adjust_learning_rate_adam(optimizer, epoch):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
-
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(100.0 / batch_size))
-    return res
-
+  
 
 if __name__ == '__main__':
     main()
