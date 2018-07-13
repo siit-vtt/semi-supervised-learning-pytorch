@@ -285,7 +285,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar', dirname='.'):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 at [150, 225, 300] epochs"""
     
-    boundary = [150,225,300]
+    boundary = [args.epochs//2,args.epochs//4*3,args.epochs]
     lr = args.lr * 0.1 ** int(bisect.bisect_left(boundary, epoch))
     print('Learning rate: %f'%lr)
     #print(epoch, lr, bisect.bisect_left(boundary, epoch))
@@ -296,7 +296,7 @@ def adjust_learning_rate(optimizer, epoch):
 def adjust_learning_rate_adam(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 5 at [240] epochs"""
     
-    boundary = [240]
+    boundary = [args.epochs//5*4]
     lr = args.lr * 0.2 ** int(bisect.bisect_left(boundary, epoch))
     print('Learning rate: %f'%lr)
     #print(epoch, lr)
