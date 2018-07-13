@@ -238,7 +238,7 @@ def cal_consistency_weight(epoch, init_ep=0, end_ep=150, init_w=0.0, end_w=20.0)
         T = float(epoch - init_ep)/float(end_ep - init_ep)
         #weight_mse = T * (end_w - init_w) + init_w #linear
         weight_cl = (math.exp(-5.0 * (1.0 - T) * (1.0 - T))) * (end_w - init_w) + init_w #exp
-    print('Consistency weight: %f'%weight_cl)
+    #print('Consistency weight: %f'%weight_cl)
     return weight_cl
  
 
