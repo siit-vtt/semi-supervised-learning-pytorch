@@ -80,8 +80,10 @@ def main():
     print args
     # create model
     if args.arch == 'preresnet':
+        print("Model: %s"%args.arch)
         model = preresnet_cifar.resnet(depth=32, num_classes=args.num_classes)
     elif args.arch == 'wideresnet':
+        print("Model: %s"%args.arch)
         model = wideresnet.WideResNet(28, args.num_classes, widen_factor=2, dropRate=0.3)
     else:
         assert(False)
@@ -206,22 +208,27 @@ def main():
     criterions = (criterion, criterion_mse)
 
     if args.optim == 'adam':
+        print('Using Adam optimizer')
         optimizer = torch.optim.Adam(model.parameters(), args.lr,
                                     betas=(0.9,0.999),
                                     weight_decay=args.weight_decay)
     elif args.optim == 'sgd':
+        print('Using SGD optimizer')
         optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay)
 
     for epoch in range(args.start_epoch, args.epochs):
         if args.optim == 'adam':
+            print('Learning rate schedule for Adam')
             adjust_learning_rate_adam(optimizer, epoch)
         elif args.optim == 'sgd':
+            print('Learning rate schedule for SGD')
             adjust_learning_rate(optimizer, epoch)
         
         # train for one epoch
         if args.model == 'baseline':
+            print('Supervised Training')
             for i in range(10):
                 prec1_tr, loss_tr = train_sup(label_loader, model, criterions, optimizer, epoch)
         else:
@@ -480,6 +487,7 @@ def adjust_learning_rate(optimizer, epoch):
     
     boundary = [150,225,300]
     lr = args.lr * 0.1 ** int(bisect.bisect_left(boundary, epoch))
+    print('Learning rate: %f'%lr)
     #print(epoch, lr, bisect.bisect_left(boundary, epoch))
     # lr = args.lr * (0.1 ** (epoch // 30))
     for param_group in optimizer.param_groups:
@@ -490,6 +498,7 @@ def adjust_learning_rate_adam(optimizer, epoch):
     
     boundary = [240]
     lr = args.lr * 0.2 ** int(bisect.bisect_left(boundary, epoch))
+    print('Learning rate: %f'%lr)
     #print(epoch, lr)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
