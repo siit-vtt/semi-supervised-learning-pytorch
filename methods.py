@@ -98,12 +98,13 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
 
         # compute output
         output = model(input_concat_var)
-        output1 = model(input1_concat_var)
+        with torch.no_grad():
+            output1 = model(input1_concat_var)
 
         output_label = output[:sl[0]]
         
         loss_ce = criterion(output_label, target_var)
-        loss_pi = criterion_mse(output, output1.detach())
+        loss_pi = criterion_mse(output, output1)
 
         loss = loss_ce + weight_cl * loss_pi
 
