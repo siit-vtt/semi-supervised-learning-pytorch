@@ -52,6 +52,8 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
+parser.add_argument('--weight_l1', '--l1', default=1e-3, type=float,
+                    metavar='W1', help='l1 regularization (default: 1e-3)')
 parser.add_argument('--print-freq', '-p', default=100, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -208,8 +210,10 @@ def main():
     # deifine loss function (criterion) and pptimizer
     criterion = nn.CrossEntropyLoss().cuda()
     criterion_mse = nn.MSELoss().cuda()
-    criterion_kl = nn.KLDivLoss().cuda()
-    criterions = (criterion, criterion_mse, criterion_kl)
+    criterion_kl = nn.KLDivLoss().cuda()    
+    criterion_l1 = nn.L1Loss(size_average=False).cuda()
+   
+    criterions = (criterion, criterion_mse, criterion_kl, criterion_l1)
 
     if args.optim == 'adam':
         print('Using Adam optimizer')

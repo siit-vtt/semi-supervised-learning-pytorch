@@ -12,7 +12,7 @@ def train_sup(label_loader, model, criterions, optimizer, epoch, args):
     # switch to train mode
     model.train()
 
-    criterion, _, _ = criterions
+    criterion, _, _, criterion_l1 = criterions
 
     end = time.time()
 
@@ -28,8 +28,10 @@ def train_sup(label_loader, model, criterions, optimizer, epoch, args):
         output = model(input_var)
         
         loss_ce = criterion(output, target_var)
+        
+        reg_l1 = cal_reg_l1(model, criterion_l1)
 
-        loss = loss_ce
+        loss = loss_ce + args.weight_l1 * reg_l1
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
@@ -69,7 +71,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
     # switch to train mode
     model.train()
 
-    criterion, criterion_mse, _ = criterions
+    criterion, criterion_mse, _, criterion_l1 = criterions
     
     end = time.time()
 
@@ -106,7 +108,9 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
         loss_ce = criterion(output_label, target_var)
         loss_pi = criterion_mse(output, output1)
 
-        loss = loss_ce + weight_cl * loss_pi
+        reg_l1 = cal_reg_l1(model, criterion_l1)
+
+        loss = loss_ce + args.weight_l1 * reg_l1 + weight_cl * loss_pi
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))
@@ -148,7 +152,7 @@ def validate(val_loader, model, criterions, args, mode = 'valid'):
     # switch to evaluate mode
     model.eval()
     
-    criterion, criterion_mse, _ = criterions
+    criterion, criterion_mse, _, _ = criterions
 
     end = time.time()
     with torch.no_grad():
@@ -241,6 +245,13 @@ def cal_consistency_weight(epoch, init_ep=0, end_ep=150, init_w=0.0, end_w=20.0)
         weight_cl = (math.exp(-5.0 * (1.0 - T) * (1.0 - T))) * (end_w - init_w) + init_w #exp
     #print('Consistency weight: %f'%weight_cl)
     return weight_cl
+
+def cal_reg_l1(model, criterion_l1):
+    reg_loss = 0
+    for param in model.parameters():
+        reg_loss += criterion_l1(param, torch.zeros_like(param))
+    return reg_loss
+ 
  
 
 
