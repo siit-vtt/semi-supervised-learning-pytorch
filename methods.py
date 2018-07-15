@@ -248,8 +248,11 @@ def cal_consistency_weight(epoch, init_ep=0, end_ep=150, init_w=0.0, end_w=20.0)
 
 def cal_reg_l1(model, criterion_l1):
     reg_loss = 0
+    np = 0
     for param in model.parameters():
         reg_loss += criterion_l1(param, torch.zeros_like(param))
+        np += param.nelement()
+    reg_loss = reg_loss / np
     return reg_loss
  
  
