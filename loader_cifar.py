@@ -127,7 +127,6 @@ class CIFAR10(data.Dataset):
                 self.train_data = self.train_data.reshape((len(train_data1), 3, 32, 32))
                 self.train_data = self.train_data.transpose((0, 2, 3, 1))  # convert to HWC
 
-                print(self.train_labels[0].type)
                 num_tr = self.train_data.shape[0]
                 #print(self.train_data1[:1,:1,:5,:5])
                 #print(self.train_labels1[:10])
