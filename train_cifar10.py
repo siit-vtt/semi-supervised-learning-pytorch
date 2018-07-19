@@ -123,6 +123,7 @@ def main():
         
     ckpt_dir = args.ckpt+'_'+args.arch+'_'+args.model+'_'+args.optim
     if args.preproc == 'zca': ckpt_dir = ckpt_dir + '_zca'
+    ckpt_dir = ckpt_dir + '_e%d'%(args.epochs)
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
     print(ckpt_dir)
