@@ -104,13 +104,14 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
             output1 = model(input1_concat_var)
 
         output_label = output[:sl[0]]
-        
         loss_ce = criterion(output_label, target_var)
         loss_pi = criterion_mse(output, output1)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
-        loss = loss_ce + args.weight_l1 * reg_l1 + weight_cl * loss_pi
+        weight_ce = float(sl[0])/float(sl[0]+su[0])
+        weight_cl = weight_cl/float(args.num_classes)
+        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * loss_pi
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))

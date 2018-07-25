@@ -162,8 +162,8 @@ def main():
             transforms.ToTensor(),
         ])
 
-    labelset = dataloader(root='/tmp', split='label', download=True, transform=transform_train, boundary=args.boundary)
-    unlabelset = dataloader(root='/tmp', split='unlabel', download=True, transform=transform_train, boundary=args.boundary)
+    labelset = dataloader(root='cifar10_zca/cifar10_gcn_zca_v2.npz', split='label', download=True, transform=transform_train, boundary=args.boundary)
+    unlabelset = dataloader(root='cifar10_zca/cifar10_gcn_zca_v2.npz', split='unlabel', download=True, transform=transform_train, boundary=args.boundary)
     
     label_size = len(labelset)
     unlabel_size = len(unlabelset)
@@ -194,14 +194,14 @@ def main():
     print("Batch size (unlabel): ", batch_size_unlabel)
 
 
-    validset = dataloader(root='/tmp', split='valid', download=False, transform=transform_test, boundary=args.boundary)
+    validset = dataloader(root='cifar10_zca/cifar10_gcn_zca_v2.npz', split='valid', download=False, transform=transform_test, boundary=args.boundary)
     val_loader = data.DataLoader(validset, 
         batch_size=args.batch_size, 
         shuffle=False, 
         num_workers=args.workers,
         pin_memory=True)
 
-    testset = dataloader(root='/tmp', split='test', download=False, transform=transform_test)
+    testset = dataloader(root='cifar10_zca/cifar10_gcn_zca_v2.npz', split='test', download=False, transform=transform_test)
     test_loader = data.DataLoader(testset, 
         batch_size=args.batch_size, 
         shuffle=False, 
