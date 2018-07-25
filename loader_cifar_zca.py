@@ -31,7 +31,7 @@ class CIFAR10(data.Dataset):
             downloaded again.
     """
        
-    data_file = 'cifar10_zca/cifar10_gcn_zca_v2.npz' 
+    #data_file = 'cifar10_zca/cifar10_gcn_zca_v2.npz' 
     nclass = 10
     split_list = ['label', 'unlabel', 'valid', 'test']
 
@@ -49,7 +49,8 @@ class CIFAR10(data.Dataset):
                              'or split="extra" or split="test"')
 
         # load data
-        self.data = np.load(self.data_file)
+        self.data = np.load(root)
+        #self.data = np.load(self.data_file)
         #self.train_data_zca = self.data['train_x'].transpose(0,3,1,2)
         #self.train_labels_zca = self.data['train_y']
         #self.test_data_zca = self.data['test_x'].transpose(0,3,1,2)
@@ -292,7 +293,7 @@ if __name__ == '__main__':
     labelset = CIFAR10('/tmp', split='label', download=True, transform=None, boundary=0)
     unlabelset = CIFAR10('/tmp', split='unlabel', download=True, transform=None, boundary=0)
 
-    for i in range(100,256):
+    for i in range(90,256):
         batch_size = i
         label_size = len(labelset)
         unlabel_size = len(unlabelset)
