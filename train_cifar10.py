@@ -89,7 +89,7 @@ def main():
         model = preresnet_cifar.resnet(depth=32, num_classes=args.num_classes)
     elif args.arch == 'wideresnet':
         print("Model: %s"%args.arch)
-        model = wideresnet.WideResNet(28, args.num_classes, widen_factor=2, dropRate=0.3)
+        model = wideresnet.WideResNet(28, args.num_classes, widen_factor=2, dropRate=0.0, leakyRate=0.1)
     else:
         assert(False)
         
