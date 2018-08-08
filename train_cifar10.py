@@ -26,7 +26,7 @@ import loader_cifar_zca as cifar_zca
 import math
 from math import ceil
 import torch.nn.functional as F
-from methods import train_sup, train_pi, validate
+from methods import train_sup, train_pi, train_mt, validate
 
 
 parser = argparse.ArgumentParser(description='PyTorch Places365 Training')
@@ -61,7 +61,7 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
 parser.add_argument('--num_classes',default=10, type=int, help='num of class in the model')
 parser.add_argument('--ckpt', default='ckpt', type=str, metavar='PATH',
                     help='path to save checkpoint (default: ckpt)')
-parser.add_argument('--boundary',default=0, type=int, help='num of class in the model')
+parser.add_argument('--boundary',default=0, type=int, help='different label/unlabel division [0,9]')
 parser.add_argument('--gpu',default=0, type=str, help='cuda_visible_devices')
 args = parser.parse_args()
 
@@ -74,6 +74,7 @@ acc1_tr, losses_tr = [], []
 losses_pi_tr = []
 acc1_val, losses_val, losses_et_val = [], [], []
 acc1_test, losses_test, losses_et_test = [], [], []
+acc1_t_tr, acc1_t_val, acc1_t_test = [], [], []
 
 def main():
     global args, best_prec1, best_test_prec1
@@ -89,12 +90,18 @@ def main():
         model = preresnet_cifar.resnet(depth=32, num_classes=args.num_classes)
     elif args.arch == 'wideresnet':
         print("Model: %s"%args.arch)
-        model = wideresnet.WideResNet(28, args.num_classes, widen_factor=2, dropRate=0.0, leakyRate=0.1)
+        model = wideresnet.WideResNet(28, args.num_classes, widen_factor=3, dropRate=0.3, leakyRate=0.1)
     else:
         assert(False)
-        
+    
+    if args.model == 'mt':
+        import copy  
+        model_teacher = copy.deepcopy(model)
+        model_teacher = torch.nn.DataParallel(model_teacher).cuda()
+
     model = torch.nn.DataParallel(model).cuda()
     print model
+    
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -104,6 +111,7 @@ def main():
             best_prec1 = checkpoint['best_prec1']
 
             model.load_state_dict(checkpoint['state_dict'])
+            if args.model=='mt': model_teacher.load_state_dict(checkpoint['state_dict'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:
@@ -242,7 +250,10 @@ def main():
                 prec1_tr, loss_tr = train_sup(label_loader, model, criterions, optimizer, epoch, args)
         elif args.model == 'pi':
             print('Pi model')
-            prec1_tr, loss_tr, loss_pi_tr = train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, args)
+            prec1_tr, loss_tr, loss_cl_tr = train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, args)
+        elif args.model == 'mt':
+            print('Mean Teacher model')
+            prec1_tr, loss_tr, loss_cl_tr, prec1_t_tr = train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, optimizer, epoch, args)
         else:
             print("Not Implemented ", args.model)
             assert(False)
@@ -250,6 +261,9 @@ def main():
         # evaluate on validation set        
         prec1_val, loss_val = validate(val_loader, model, criterions, args, 'valid')
         prec1_test, loss_test = validate(test_loader, model, criterions, args, 'test')
+        if args.model=='mt':
+            prec1_t_val, loss_t_val = validate(val_loader, model_teacher, criterions, args, 'valid')
+            prec1_t_test, loss_t_test = validate(test_loader, model_teacher, criterions, args, 'test')
 
         # append values
         acc1_tr.append(prec1_tr)
@@ -258,26 +272,60 @@ def main():
         losses_val.append(loss_val)
         acc1_test.append(prec1_test)
         losses_test.append(loss_test)
-        if args.model=='pi': losses_pi_tr.append(loss_pi_tr)
+        if loss_cl_tr is not None: losses_cl_tr.append(loss_cl_tr)
+        elif args.model=='mt':
+            acc1_t_tr.append(prec1_t_tr)
+            acc1_t_val.append(prec1_t_val)
+            acc1_t_test.append(prec1_t_test)
 
         # remember best prec@1 and save checkpoint
-        is_best = prec1_val > best_prec1
-        if is_best:
-            best_test_prec1 = prec1_test
-        best_prec1 = max(prec1_val, best_prec1)
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'state_dict': model.state_dict(),
-            'best_prec1': best_prec1,
-            'best_test_prec1' : best_test_prec1,
-            'acc1_tr': acc1_tr,
-            'losses_tr': losses_tr,
-            'losses_pi_tr': losses_pi_tr,
-            'acc1_val': acc1_val,
-            'losses_val': losses_val,
-            'acc1_test' : acc1_test,
-            'losses_test' : losses_test,
-        }, is_best, args.arch.lower()+str(args.boundary), dirname=ckpt_dir)
+        if args.model == 'mt': 
+            is_best = prec1_t_val > best_prec1
+            if is_best:
+                best_test_prec1_t = prec1_t_test
+                best_test_prec1 = prec1_test
+            print("Best test precision: %.3f"%best_test_prec1_t)
+            best_prec1 = max(prec1_t_val, best_prec1)
+            dict_checkpoint = {
+                'epoch': epoch + 1,
+                'state_dict': model.state_dict(),
+                'best_prec1': best_prec1,
+                'best_test_prec1' : best_test_prec1,
+                'acc1_tr': acc1_tr,
+                'losses_tr': losses_tr,
+                'losses_pi_tr': losses_pi_tr,
+                'acc1_val': acc1_val,
+                'losses_val': losses_val,
+                'acc1_test' : acc1_test,
+                'losses_test' : losses_test,
+                'acc1_t_tr': acc1_t_tr,
+                'acc1_t_val': acc1_t_val,
+                'acc1_t_test': acc1_t_test,
+                'state_dict_teacher': model_teacher.state_dict(),
+                'best_test_prec1_t' : best_test_prec1_t,
+            }
+       
+        else:
+            is_best = prec1_val > best_prec1
+            if is_best:
+                best_test_prec1 = prec1_test
+            print("Best test precision: %.3f"%best_test_prec1)
+            best_prec1 = max(prec1_val, best_prec1)
+            dict_checkpoint = {
+                'epoch': epoch + 1,
+                'state_dict': model.state_dict(),
+                'best_prec1': best_prec1,
+                'best_test_prec1' : best_test_prec1,
+                'acc1_tr': acc1_tr,
+                'losses_tr': losses_tr,
+                'losses_pi_tr': losses_pi_tr,
+                'acc1_val': acc1_val,
+                'losses_val': losses_val,
+                'acc1_test' : acc1_test,
+                'losses_test' : losses_test,
+            }
+
+        save_checkpoint(dict_checkpoint, is_best, args.arch.lower()+str(args.boundary), dirname=ckpt_dir)
         
         
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar', dirname='.'):

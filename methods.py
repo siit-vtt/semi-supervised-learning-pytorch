@@ -80,7 +80,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
     len_iter = len(label_iter)
     for i in range(len(label_iter)):
         # set weights for the consistency loss
-        weight_cl = cal_consistency_weight(epoch*len_iter+i, end_ep=(args.epochs//2)*len_iter)
+        weight_cl = cal_consistency_weight(epoch*len_iter+i, end_ep=(args.epochs//2)*len_iter, end_w=1.0)
         
         input, target, input1 = next(label_iter)
         input_ul, _, input1_ul = next(unlabel_iter)
@@ -111,7 +111,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
 
         weight_ce = float(sl[0])/float(sl[0]+su[0])
         weight_cl = weight_cl/float(args.num_classes)
-        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * loss_pi
+        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * 20.0 * loss_pi
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))
@@ -142,6 +142,100 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
                    top1=top1, top5=top5))
     
     return top1.avg , losses.avg, losses_pi.avg
+
+def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, optimizer, epoch, args, ema_const=0.95):
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    losses_cl = AverageMeter()
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+    top1_t = AverageMeter()
+    top5_t = AverageMeter()
+
+    # switch to train mode
+    model.train()
+    model_teacher.train()
+
+    criterion, criterion_mse, _, criterion_l1 = criterions
+    
+    end = time.time()
+
+    label_iter = iter(label_loader)     
+    unlabel_iter = iter(unlabel_loader)     
+    len_iter = len(label_iter)
+    for i in range(len(label_iter)):
+        # set weights for the consistency loss
+        global_step = epoch * len_iter + i
+        weight_cl = cal_consistency_weight(global_step, end_ep=(args.epochs//2)*len_iter, end_w=1.0)
+        
+        input, target, input1 = next(label_iter)
+        input_ul, _, input1_ul = next(unlabel_iter)
+        sl = input.shape
+        su = input_ul.shape
+        # measure data loading time
+        data_time.update(time.time() - end)
+        target = target.cuda(async=True)
+        input_var = torch.autograd.Variable(input)
+        input1_var = torch.autograd.Variable(input1)
+        input_ul_var = torch.autograd.Variable(input_ul)
+        input1_ul_var = torch.autograd.Variable(input1_ul)
+        input_concat_var = torch.cat([input_var, input_ul_var])
+        input1_concat_var = torch.cat([input1_var, input1_ul_var])
+       
+        target_var = torch.autograd.Variable(target)
+
+        # compute output
+        output = model(input_concat_var)
+        with torch.no_grad():
+            output1 = model_teacher(input1_concat_var)
+
+        output_label = output[:sl[0]]
+        output1_label = output1[:sl[0]]
+        loss_ce = criterion(output_label, target_var)
+        loss_cl = criterion_mse(output, output1)
+
+        reg_l1 = cal_reg_l1(model, criterion_l1)
+
+        weight_ce = float(sl[0])/float(sl[0]+su[0])
+        weight_cl = weight_cl/float(args.num_classes)
+        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * 8.0 * loss_cl
+
+        # measure accuracy and record loss
+        prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))
+        prec1_t, prec5_t = accuracy(output1_label.data, target, topk=(1, 5))
+        losses.update(loss_ce.item(), input.size(0))
+        losses_cl.update(loss_cl.item(), input.size(0))
+        top1.update(prec1.item(), input.size(0))
+        top5.update(prec5.item(), input.size(0))
+        top1_t.update(prec1_t.item(), input.size(0))
+        top5_t.update(prec5_t.item(), input.size(0))
+
+        # compute gradient and do SGD step
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        update_ema_variables(model, model_teacher, ema_const, global_step)
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+
+        if i % args.print_freq == 0:
+            print('Epoch: [{0}][{1}/{2}]\t'
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'LossCL {loss_cl.val:.4f} ({loss_cl.avg:.4f})\t'
+                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\t'
+                  'PrecT@1 {top1_t.val:.3f} ({top1_t.avg:.3f})\t'
+                  'PrecT@5 {top5_t.val:.3f} ({top5_t.avg:.3f})'.format(
+                   epoch, i, len(label_iter), batch_time=batch_time,
+                   data_time=data_time, loss=losses, loss_cl=losses_cl,
+                   top1=top1, top5=top5, top1_t=top1_t, top5_t=top5_t))
+    
+    return top1.avg , losses.avg, losses_cl.avg, top1_t.avg
 
 
 def validate(val_loader, model, criterions, args, mode = 'valid'):
@@ -256,6 +350,10 @@ def cal_reg_l1(model, criterion_l1):
     reg_loss = reg_loss / np
     return reg_loss
  
- 
+def update_ema_variables(model, model_teacher, alpha, global_step):
+    # Use the true average until the exponential average is more correct
+    alpha = min(1.0 - 1.0 / float(global_step + 1), alpha)
+    for param_t, param in zip(model_teacher.parameters(), model.parameters()):
+        param_t.data.mul_(alpha).add_(1 - alpha, param.data)
 
 
