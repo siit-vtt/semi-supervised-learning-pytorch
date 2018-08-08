@@ -71,7 +71,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
 best_prec1 = 0
 best_test_prec1 = 0
 acc1_tr, losses_tr = [], []
-losses_pi_tr = []
+losses_cl_tr = []
 acc1_val, losses_val, losses_et_val = [], [], []
 acc1_test, losses_test, losses_et_test = [], [], []
 acc1_t_tr, acc1_t_val, acc1_t_test = [], [], []
@@ -79,7 +79,7 @@ acc1_t_tr, acc1_t_val, acc1_t_test = [], [], []
 def main():
     global args, best_prec1, best_test_prec1
     global acc1_tr, losses_tr 
-    global losses_pi_tr
+    global losses_cl_tr
     global acc1_val, losses_val, losses_et_val
     global acc1_test, losses_test, losses_et_test
     args = parser.parse_args()
@@ -293,7 +293,7 @@ def main():
                 'best_test_prec1' : best_test_prec1,
                 'acc1_tr': acc1_tr,
                 'losses_tr': losses_tr,
-                'losses_pi_tr': losses_pi_tr,
+                'losses_cl_tr': losses_cl_tr,
                 'acc1_val': acc1_val,
                 'losses_val': losses_val,
                 'acc1_test' : acc1_test,
@@ -318,7 +318,7 @@ def main():
                 'best_test_prec1' : best_test_prec1,
                 'acc1_tr': acc1_tr,
                 'losses_tr': losses_tr,
-                'losses_pi_tr': losses_pi_tr,
+                'losses_cl_tr': losses_cl_tr,
                 'acc1_val': acc1_val,
                 'losses_val': losses_val,
                 'acc1_test' : acc1_test,
