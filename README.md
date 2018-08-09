@@ -11,7 +11,9 @@ Download ZCA preprocessed CIFAR-10 dataset
 Place the preprocessed file (e.g. cifar10_gcn_zca_v2.npz) into a subfolder (e.g. cifar10_zca).
 
 # Experiment detail
-We use WideResnet same as original paper. However we use **WideResnet28x3 with dropout rate 0.3** while **WideResnet28x2 without dropout** is used in the original paper. We widen the network since we could not obtain same performance with the original setting. There may be some different settings from the paper. We add dropout since it is usually implemented in their original networks [2,3]. The WideResnet source is modified from [ODIN](https://github.com/facebookresearch/odin) repository (We also implemented pre-activation Resnet with stochastic depth but could not obtain comparable results) 
+We use WideResnet same as original paper. However we use **WideResnet28x3 with dropout rate 0.3** while **WideResnet28x2 without dropout** is used in the original paper. We widen the network since we could not obtain same performance with the original setting. There may be some different settings from the paper. We add dropout since it is usually implemented in their original networks [2,3]. The WideResnet code is modified from source in [ODIN](https://github.com/facebookresearch/odin) repository under Creative Commons Attribution-NonCommercial 4.0 International Public License. Please refer to the LICENSE file in the original repository. 
+
+(We also implemented pre-activation Resnet with stochastic depth but could not obtain comparable results) 
 
 We follow the hyperparameter provided in the **appendix B** of [1]. We use Adam optimizer with learning rate schedule. The inital learning rate is decayed by the factor of 0.2 at 4/5 of entire epochs. We choose **batch size of 225** and use **2GPUs** for training while **100** and **1 GPU** in [1]. In [1], the training is done for **500k iterations**. We tried to match the number of entire samples shown by the network. The network is trained for **12000 epochs for basline** and **1200 epochs for semi-supervised learning methods**.  
 
