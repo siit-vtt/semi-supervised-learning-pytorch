@@ -39,8 +39,6 @@ parser.add_argument('--optim', '-o', metavar='OPTIM', default='adam',
                     help='optimizer: '+' (default: adam)', choices=['adam', 'sgd'])
 parser.add_argument('--dataset', '-d', metavar='DATASET', default='cifar10_zca',
                     help='dataset: '+' (default: cifar10)', choices=['cifar10', 'cifar10_zca', 'svhn'])
-#parser.add_argument('--preproc', '-pre', metavar='PRE', default='zca',
-#                    help='image pre-processing: '+' (default: zca)', choices=['zca', 'meanstd'])
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=1200, type=int, metavar='N',
