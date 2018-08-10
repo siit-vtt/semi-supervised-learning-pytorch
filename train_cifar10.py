@@ -275,7 +275,8 @@ def main():
         losses_val.append(loss_val)
         acc1_test.append(prec1_test)
         losses_test.append(loss_test)
-        if loss_cl_tr is not None: losses_cl_tr.append(loss_cl_tr)
+        if args.model != 'baseline': 
+            losses_cl_tr.append(loss_cl_tr)
         elif args.model=='mt':
             acc1_t_tr.append(prec1_t_tr)
             acc1_t_val.append(prec1_t_val)
