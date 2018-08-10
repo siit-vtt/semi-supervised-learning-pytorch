@@ -13,5 +13,5 @@ python train_cifar10.py -a=wideresnet -o=adam -pre=zca --ckpt=ckpt --gpu=0,1 --l
 #python train_cifar10.py -a=wideresnet -o=adam -pre=zca --ckpt=ckpt --gpu=0,1 --lr=0.003 --boundary=8 &&
 #python train_cifar10.py -a=wideresnet -o=adam -pre=zca --ckpt=ckpt --gpu=0,1 --lr=0.003 --boundary=9 &&
 
-
+#
 ls
