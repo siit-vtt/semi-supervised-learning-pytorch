@@ -22,20 +22,20 @@ As stated above, we prepocess the CIFAR-10 dataset with GCN and ZCA. we found th
 # To Run
 For basline 
     
-    python train_cifar10.py -a=wideresnet -o=adam -pre=zca -m=baseline --gpu=0,1 --lr=0.003 --epochs=1200 --boundary=0
+    python train.py -a=wideresnet -m=baseline -o=adam -b=225 --dataset=cifar10_zca --gpu=0,1 --lr=0.003 --boundary=0
 
  For Pi model
 
-    python train_cifar10.py -a=wideresnet -o=adam -pre=zca -m=pi --gpu=0,1 --lr=0.0003 --epochs=1200 --boundary=0
+    python train.py -a=wideresnet -m=pi -o=adam -b=225 --dataset=cifar10_zca --gpu=0,1 --lr=0.0003 --boundary=0
  For Mean Teacher
 
-    python train_cifar10.py -a=wideresnet -o=adam -pre=zca -m=mt --gpu=0,1 --lr=0.0004 --epochs=1200 --boundary=0
+    python train.py -a=wideresnet -m=mt -o=adam -b=225 --dataset=cifar10_zca --gpu=0,1 --lr=0.0004 --boundary=0
     
 * boundary option is for different label/unlabel division [0, 9].
     
 You can check the average error rates for `n` runs using `check_result.py`. For example, you trained baseline model on 10 different boundary,
 
-    python check_result.py --fdir ckpt_wideresnet_baseline_adam_zca_e1200/ --fname wideresnet --nckpt 10 
+    python check_result.py --fdir ckpt_cifar10_zca_wideresnet_baseline_adam_e1200/ --fname wideresnet --nckpt 10 
     
 # Result (CIFAR-10)
 |Method       |WideResnet28x2 [1]    |WideResnet28x3 w/ dropout (ours)   |
