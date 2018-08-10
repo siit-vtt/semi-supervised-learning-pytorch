@@ -41,7 +41,7 @@ You can check the average error rates for `n` runs using `check_result.py`. For 
 |Method       |WideResnet28x2 [1]    |WideResnet28x3 w/ dropout (ours)   |
 |-------------|----------------------|-----------------------------------|
 |Supervised   |20.26 (0.38)          |20.84(0.68)                        |
-|PI Model     |16.37 (0.63)          |-                                  |
+|PI Model     |16.37 (0.63)          |15.74(0.53)                        |
 |Mean Teacher |15.87 (0.28)          |-                                  |
 |VAT          |13.86 (0.27)          |-                                  |
 |VAT + EM     |13.13 (0.39)          |-                                  |

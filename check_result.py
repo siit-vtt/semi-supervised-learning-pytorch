@@ -20,7 +20,7 @@ for i in range(nckpt):
     path = os.path.join(fdir,fname+str(i)+'_latest.pth.tar')
     checkpoint = torch.load(path)
     print(path)
-    if checkpoint['best_test_prec1_t'] is not None:
+    if 'best_test_prec1_t' in checkpoint:
         print("Teacher precision")
         best_prec1 = 100.0 - checkpoint['best_test_prec1_t']
     else:
