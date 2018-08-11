@@ -213,14 +213,14 @@ def main():
     print("Batch size (unlabel): ", batch_size_unlabel)
 
 
-    validset = dataloader(root=data_dir, split='valid', download=False, transform=transform_test, boundary=args.boundary)
+    validset = dataloader(root=data_dir, split='valid', download=True, transform=transform_test, boundary=args.boundary)
     val_loader = data.DataLoader(validset, 
         batch_size=args.batch_size, 
         shuffle=False, 
         num_workers=args.workers,
         pin_memory=True)
 
-    testset = dataloader(root=data_dir, split='test', download=False, transform=transform_test)
+    testset = dataloader(root=data_dir, split='test', download=True, transform=transform_test)
     test_loader = data.DataLoader(testset, 
         batch_size=args.batch_size, 
         shuffle=False, 
