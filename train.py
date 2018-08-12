@@ -172,13 +172,17 @@ def main():
         num_classes = 10
         data_dir = '/tmp/'
  
+        normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                         std=[0.5, 0.5, 0.5])
         transform_train = transforms.Compose([
             transforms.RandomCrop(32, padding=2),
             transforms.ToTensor(),
+            normalize,
         ])
  
         transform_test = transforms.Compose([
             transforms.ToTensor(),
+            normalize,
         ])    
 
    
