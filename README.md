@@ -42,11 +42,10 @@ You can check the average error rates for `n` runs using `check_result.py`. For 
 |-------------|----------------------|-----------------------------------|
 |Supervised   |20.26 (0.38)          |20.84(0.68)                        |
 |PI Model     |16.37 (0.63)          |15.74(0.53)                        |
-|Mean Teacher |15.87 (0.28)          |-                                  |
+|Mean Teacher |15.87 (0.28)          |14.47(0.34)                        |
 |VAT          |13.86 (0.27)          |-                                  |
 |VAT + EM     |13.13 (0.39)          |-                                  |
 
-Results of PI model and Mean Teacher will be updated in a few days
 
 # References
 [1] Oliver, Avital, et al. "Realistic Evaluation of Deep Semi-Supervised Learning Algorithms." arXiv preprint arXiv:1804.09170 (2018).
