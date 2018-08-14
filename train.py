@@ -85,13 +85,20 @@ def main():
     global acc1_test, losses_test, losses_et_test
     args = parser.parse_args()
     print args
+    if args.dataset == 'svhn':
+        drop_rate=0.0
+        widen_factor=2
+    else:
+        drop_rate=0.3
+        widen_factor=3
+
     # create model
     if args.arch == 'preresnet':
         print("Model: %s"%args.arch)
         model = preresnet_cifar.resnet(depth=32, num_classes=args.num_classes)
     elif args.arch == 'wideresnet':
         print("Model: %s"%args.arch)
-        model = wideresnet.WideResNet(28, args.num_classes, widen_factor=3, dropRate=0.3, leakyRate=0.1)
+        model = wideresnet.WideResNet(28, args.num_classes, widen_factor=widen_factor, dropRate=drop_rate, leakyRate=0.1)
     else:
         assert(False)
     
