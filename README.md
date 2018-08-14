@@ -1,6 +1,8 @@
 # ssl (semi-supervised learning)
 This repository contains code to reproduce "[Realistic Evaluation of Deep Semi-Supervised Learning Algorithms](https://arxiv.org/abs/1804.09170)" in pytorch. Currently, only supervised baseline, PI-model[2] and Mean-Teacher[3] are implemented. We attempted to follow the description in the paper, but there are several differences made intentionally. There may be other differences made accidentally from experiments in the paper. 
 
+* The training code is under modification.
+
 # Prerequisites
 Tested on 
 * python 2.7
@@ -40,9 +42,9 @@ You can check the average error rates for `n` runs using `check_result.py`. For 
 # Result (CIFAR-10)
 |Method       |WideResnet28x2 [1]    |WideResnet28x3 w/ dropout (ours)   |
 |-------------|----------------------|-----------------------------------|
-|Supervised   |20.26 (0.38)          |20.84(0.68)                        |
-|PI Model     |16.37 (0.63)          |15.74(0.53)                        |
-|Mean Teacher |15.87 (0.28)          |14.47(0.34)                        |
+|Supervised   |20.26 (0.38)          |                                   |
+|PI Model     |16.37 (0.63)          |                                   |
+|Mean Teacher |15.87 (0.28)          |                                   |
 |VAT          |13.86 (0.27)          |-                                  |
 |VAT + EM     |13.13 (0.39)          |-                                  |
 
