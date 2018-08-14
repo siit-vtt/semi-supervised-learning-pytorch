@@ -1,6 +1,7 @@
 import time
 import math
 import torch
+import torch.nn.functional as F
 
 def train_sup(label_loader, model, criterions, optimizer, epoch, args):
     batch_time = AverageMeter()
@@ -60,7 +61,7 @@ def train_sup(label_loader, model, criterions, optimizer, epoch, args):
     
     return top1.avg , losses.avg
 
-def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, args):
+def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, args, weight_pi=20.0):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -86,6 +87,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
         input_ul, _, input1_ul = next(unlabel_iter)
         sl = input.shape
         su = input_ul.shape
+        batch_size = sl[0] + su[0]
         # measure data loading time
         data_time.update(time.time() - end)
         target = target.cuda(async=True)
@@ -104,14 +106,16 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
             output1 = model(input1_concat_var)
 
         output_label = output[:sl[0]]
+        pred = F.softmax(output)
+        pred1 = F.softmax(output1)
         loss_ce = criterion(output_label, target_var)
-        loss_pi = criterion_mse(output, output1)
+        loss_pi = criterion_mse(pred, pred1)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
-        weight_ce = float(sl[0])/float(sl[0]+su[0])
-        weight_cl = weight_cl/float(args.num_classes)
-        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * 20.0 * loss_pi
+        weight_ce = 1.0/float(batch_size)
+        weight_cl = weight_cl/float(args.num_classes*batch_size)
+        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * weight_pi * loss_pi
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))
@@ -143,7 +147,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
     
     return top1.avg , losses.avg, losses_pi.avg
 
-def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, optimizer, epoch, args, ema_const=0.95):
+def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, optimizer, epoch, args, ema_const=0.95, weight_mt=8.0):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -173,6 +177,7 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
         input_ul, _, input1_ul = next(unlabel_iter)
         sl = input.shape
         su = input_ul.shape
+        batch_size = sl[0] + su[0]
         # measure data loading time
         data_time.update(time.time() - end)
         target = target.cuda(async=True)
@@ -192,14 +197,16 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
 
         output_label = output[:sl[0]]
         output1_label = output1[:sl[0]]
+        pred = F.softmax(output)
+        pred1 = F.softmax(output1)
         loss_ce = criterion(output_label, target_var)
-        loss_cl = criterion_mse(output, output1)
+        loss_cl = criterion_mse(pred, pred1)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
-        weight_ce = float(sl[0])/float(sl[0]+su[0])
-        weight_cl = weight_cl/float(args.num_classes)
-        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * 8.0 * loss_cl
+        weight_ce = 1.0/float(batch_size)
+        weight_cl = weight_cl/float(args.num_classes*batch_size)
+        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * weight_mt * loss_cl
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))
