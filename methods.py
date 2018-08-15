@@ -68,6 +68,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
     losses_pi = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+    weights_cl = AverageMeter()
 
     # switch to train mode
     model.train()
@@ -108,14 +109,12 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
         output_label = output[:sl[0]]
         pred = F.softmax(output)
         pred1 = F.softmax(output1)
-        loss_ce = criterion(output_label, target_var)
-        loss_pi = criterion_mse(pred, pred1)
+        loss_ce = criterion(output_label, target_var) / float(batch_size)
+        loss_pi = criterion_mse(pred, pred1) /float(args.num_classes*batch_size)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
-        weight_ce = 1.0/float(batch_size)
-        weight_cl = weight_cl/float(args.num_classes*batch_size)
-        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * weight_pi * loss_pi
+        loss = loss_ce + args.weight_l1 * reg_l1 + weight_cl * weight_pi * loss_pi
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))
@@ -123,6 +122,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
         losses_pi.update(loss_pi.item(), input.size(0))
         top1.update(prec1.item(), input.size(0))
         top5.update(prec5.item(), input.size(0))
+        weights_cl.update(weight_cl, input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -145,7 +145,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
                    data_time=data_time, loss=losses, loss_pi=losses_pi,
                    top1=top1, top5=top5))
     
-    return top1.avg , losses.avg, losses_pi.avg
+    return top1.avg , losses.avg, losses_pi.avg, weights_cl.avg
 
 def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, optimizer, epoch, args, ema_const=0.95, weight_mt=8.0):
     batch_time = AverageMeter()
@@ -156,6 +156,7 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
     top5 = AverageMeter()
     top1_t = AverageMeter()
     top5_t = AverageMeter()
+    weights_cl = AverageMeter()
 
     # switch to train mode
     model.train()
@@ -199,14 +200,12 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
         output1_label = output1[:sl[0]]
         pred = F.softmax(output)
         pred1 = F.softmax(output1)
-        loss_ce = criterion(output_label, target_var)
-        loss_cl = criterion_mse(pred, pred1)
+        loss_ce = criterion(output_label, target_var)/float(batch_size)
+        loss_cl = criterion_mse(pred, pred1)/float(args.num_classes*batch_size)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
-        weight_ce = 1.0/float(batch_size)
-        weight_cl = weight_cl/float(args.num_classes*batch_size)
-        loss = weight_ce * loss_ce + args.weight_l1 * reg_l1 + weight_cl * weight_mt * loss_cl
+        loss = loss_ce + args.weight_l1 * reg_l1 + weight_cl * weight_mt * loss_cl
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output_label.data, target, topk=(1, 5))
@@ -217,6 +216,7 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
         top5.update(prec5.item(), input.size(0))
         top1_t.update(prec1_t.item(), input.size(0))
         top5_t.update(prec5_t.item(), input.size(0))
+        weights_cl.update(weight_cl, input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -242,7 +242,7 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
                    data_time=data_time, loss=losses, loss_cl=losses_cl,
                    top1=top1, top5=top5, top1_t=top1_t, top5_t=top5_t))
     
-    return top1.avg , losses.avg, losses_cl.avg, top1_t.avg
+    return top1.avg , losses.avg, losses_cl.avg, top1_t.avg, weights_cl.avg
 
 
 def validate(val_loader, model, criterions, args, mode = 'valid'):
@@ -259,6 +259,8 @@ def validate(val_loader, model, criterions, args, mode = 'valid'):
     end = time.time()
     with torch.no_grad():
         for i, (input, target, _) in enumerate(val_loader):
+            sl = input.shape
+            batch_size = sl[0]
             target = target.cuda(async=True)
             input_var = torch.autograd.Variable(input)
             target_var = torch.autograd.Variable(target)
@@ -266,7 +268,7 @@ def validate(val_loader, model, criterions, args, mode = 'valid'):
             # compute output
             output = model(input_var)
             softmax = torch.nn.LogSoftmax(dim=1)(output)
-            loss = criterion(output, target_var)
+            loss = criterion(output, target_var)/float(batch_size)
  
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, target, topk=(1, 5))

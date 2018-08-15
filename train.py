@@ -76,6 +76,7 @@ losses_cl_tr = []
 acc1_val, losses_val, losses_et_val = [], [], []
 acc1_test, losses_test, losses_et_test = [], [], []
 acc1_t_tr, acc1_t_val, acc1_t_test = [], [], []
+learning_rate, weights_cl = [], []
 
 def main():
     global args, best_prec1, best_test_prec1
@@ -83,6 +84,7 @@ def main():
     global losses_cl_tr
     global acc1_val, losses_val, losses_et_val
     global acc1_test, losses_test, losses_et_test
+    global weights_cl
     args = parser.parse_args()
     print args
     if args.dataset == 'svhn':
@@ -260,22 +262,23 @@ def main():
     for epoch in range(args.start_epoch, args.epochs):
         if args.optim == 'adam':
             print('Learning rate schedule for Adam')
-            adjust_learning_rate_adam(optimizer, epoch)
+            lr = adjust_learning_rate_adam(optimizer, epoch)
         elif args.optim == 'sgd':
             print('Learning rate schedule for SGD')
-            adjust_learning_rate(optimizer, epoch)
+            lr = adjust_learning_rate(optimizer, epoch)
         
         # train for one epoch
         if args.model == 'baseline':
             print('Supervised Training')
             for i in range(10): #baseline repeat 10 times since small number of training set 
                 prec1_tr, loss_tr = train_sup(label_loader, model, criterions, optimizer, epoch, args)
+                weight_cl = 0.0
         elif args.model == 'pi':
             print('Pi model')
-            prec1_tr, loss_tr, loss_cl_tr = train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, args)
+            prec1_tr, loss_tr, loss_cl_tr, weight_cl = train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, args)
         elif args.model == 'mt':
             print('Mean Teacher model')
-            prec1_tr, loss_tr, loss_cl_tr, prec1_t_tr = train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, optimizer, epoch, args)
+            prec1_tr, loss_tr, loss_cl_tr, prec1_t_tr, weight_cl = train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, optimizer, epoch, args)
         else:
             print("Not Implemented ", args.model)
             assert(False)
@@ -300,6 +303,8 @@ def main():
             acc1_t_tr.append(prec1_t_tr)
             acc1_t_val.append(prec1_t_val)
             acc1_t_test.append(prec1_t_test)
+        weights_cl.append(weight_cl)
+        learning_rate.append(lr)
 
         # remember best prec@1 and save checkpoint
         if args.model == 'mt': 
@@ -326,6 +331,8 @@ def main():
                 'acc1_t_test': acc1_t_test,
                 'state_dict_teacher': model_teacher.state_dict(),
                 'best_test_prec1_t' : best_test_prec1_t,
+                'weights_cl' : weights_cl,
+                'learning_rate' : learning_rate,
             }
        
         else:
@@ -346,6 +353,8 @@ def main():
                 'losses_val': losses_val,
                 'acc1_test' : acc1_test,
                 'losses_test' : losses_test,
+                'weights_cl' : weights_cl,
+                'learning_rate' : learning_rate,
             }
 
         save_checkpoint(dict_checkpoint, is_best, args.arch.lower()+str(args.boundary), dirname=ckpt_dir)
@@ -369,6 +378,8 @@ def adjust_learning_rate(optimizer, epoch):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
+    return lr
+
 def adjust_learning_rate_adam(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 5 at [240] epochs"""
     
@@ -378,6 +389,8 @@ def adjust_learning_rate_adam(optimizer, epoch):
     #print(epoch, lr)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+    
+    return lr
 
   
 
