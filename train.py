@@ -205,14 +205,14 @@ def main():
         batch_size=batch_size_label, 
         shuffle=True, 
         num_workers=args.workers,
-        pin_memory=True)
+        pin_memory=False)
     label_iter = iter(label_loader) 
 
     unlabel_loader = data.DataLoader(unlabelset, 
         batch_size=batch_size_unlabel, 
         shuffle=True, 
         num_workers=args.workers,
-        pin_memory=True)
+        pin_memory=False)
     unlabel_iter = iter(unlabel_loader) 
 
     print("Batch size (label): ", batch_size_label)
@@ -224,14 +224,14 @@ def main():
         batch_size=args.batch_size, 
         shuffle=False, 
         num_workers=args.workers,
-        pin_memory=True)
+        pin_memory=False)
 
     testset = dataloader(root=data_dir, split='test', download=True, transform=transform_test)
     test_loader = data.DataLoader(testset, 
         batch_size=args.batch_size, 
         shuffle=False, 
         num_workers=args.workers,
-        pin_memory=True)
+        pin_memory=False)
 
     # deifine loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss(size_average=False).cuda()
