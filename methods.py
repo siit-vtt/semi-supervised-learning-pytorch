@@ -115,7 +115,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
         output_label = output[:sl[0]]
         pred = F.softmax(output, 1)
         pred1 = F.softmax(output1, 1)
-        loss_ce = criterion(output_label, target_var) / float(batch_size)
+        loss_ce = criterion(output_label, target_var) / float(sl[0])
         loss_pi = criterion_mse(pred, pred1) / float(args.num_classes * batch_size)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
@@ -210,7 +210,7 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
         output1_label = output1[:sl[0]]
         pred = F.softmax(output, 1)
         pred1 = F.softmax(output1, 1)
-        loss_ce = criterion(output_label, target_var) /float(batch_size)
+        loss_ce = criterion(output_label, target_var) /float(sl[0])
         loss_cl = criterion_mse(pred, pred1) /float(args.num_classes * batch_size)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
