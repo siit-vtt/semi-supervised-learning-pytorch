@@ -30,7 +30,7 @@ def train_sup(label_loader, model, criterions, optimizer, epoch, args):
         # compute output
         output = model(input_var)
         
-        loss_ce = criterion(output, target_var)
+        loss_ce = criterion(output, target_var) / float(batch_size)
         
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
@@ -115,8 +115,8 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
         output_label = output[:sl[0]]
         pred = F.softmax(output, 1)
         pred1 = F.softmax(output1, 1)
-        loss_ce = criterion(output_label, target_var) * float(sl[0]) / float(batch_size)
-        loss_pi = criterion_mse(pred, pred1)
+        loss_ce = criterion(output_label, target_var) / float(batch_size)
+        loss_pi = criterion_mse(pred, pred1) / float(args.num_classes * batch_size)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
@@ -210,8 +210,8 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
         output1_label = output1[:sl[0]]
         pred = F.softmax(output, 1)
         pred1 = F.softmax(output1, 1)
-        loss_ce = criterion(output_label, target_var) * float(sl[0]) /float(batch_size)
-        loss_cl = criterion_mse(pred, pred1)
+        loss_ce = criterion(output_label, target_var) /float(batch_size)
+        loss_cl = criterion_mse(pred, pred1) /float(args.num_classes * batch_size)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
@@ -278,7 +278,7 @@ def validate(val_loader, model, criterions, args, mode = 'valid'):
             # compute output
             output = model(input_var)
             softmax = torch.nn.LogSoftmax(dim=1)(output)
-            loss = criterion(output, target_var)
+            loss = criterion(output, target_var) / float(batch_size)
  
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, target, topk=(1, 5))

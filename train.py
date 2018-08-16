@@ -234,9 +234,9 @@ def main():
         pin_memory=True)
 
     # deifine loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda()
-    criterion_mse = nn.MSELoss().cuda()
-    criterion_kl = nn.KLDivLoss().cuda()    
+    criterion = nn.CrossEntropyLoss(size_average=False).cuda()
+    criterion_mse = nn.MSELoss(size_average=False).cuda()
+    criterion_kl = nn.KLDivLoss(size_average=False).cuda()    
     criterion_l1 = nn.L1Loss(size_average=False).cuda()
    
     criterions = (criterion, criterion_mse, criterion_kl, criterion_l1)
