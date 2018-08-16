@@ -38,6 +38,11 @@ for i in range(nckpt):
     losses_tr = checkpoint['losses_tr']
     losses_val = checkpoint['losses_val']
     losses_te = checkpoint['losses_test']
+    weights_cl = checkpoint['weights_cl']
+    learning_rate = checkpoint['learning_rate']
+    losses_cl_tr = []
+    if 'losses_cl_tr' in checkpoint:
+        losses_cl_tr = checkpoint['losses_cl_tr']
 
     if(args.plot):
         import matplotlib.pyplot as plt
@@ -49,14 +54,29 @@ for i in range(nckpt):
         ax.legend()
         ax.grid(linestyle='--')
         ax = plt.subplot(2,1,2) 
-        ax.plot(losses_tr, label='train_loss')
-        ax.plot(losses_val, label='val_loss')
-        ax.plot(losses_te, label='test_loss')
+        ax.plot(learning_rate, label='lr')
+        ax.plot(weights_cl, label='w_cl')
         ax.legend()
         ax.grid(linestyle='--')
         plt.savefig(fname_acc)
         #plt.show()
         plt.clf()
+
+        fig = plt.figure()
+        ax = plt.subplot(2,1,1) 
+        ax.plot(losses_tr, label='train_loss')
+        ax.plot(losses_val, label='val_loss')
+        ax.plot(losses_te, label='test_loss')
+        ax.legend()
+        ax.grid(linestyle='--')
+        ax = plt.subplot(2,1,2) 
+        ax.plot(losses_cl_tr, label='train_loss_cl')
+        ax.legend()
+        ax.grid(linestyle='--')
+        plt.savefig(fname_loss)
+        #plt.show()
+        plt.clf()
+
 
     #plt.show()
 best_prec1s = np.array(best_prec1s)
