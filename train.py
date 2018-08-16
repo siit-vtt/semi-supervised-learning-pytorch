@@ -41,11 +41,11 @@ parser.add_argument('--dataset', '-d', metavar='DATASET', default='cifar10_zca',
                     help='dataset: '+' (default: cifar10)', choices=['cifar10', 'cifar10_zca', 'svhn'])
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=1200, type=int, metavar='N',
+parser.add_argument('--epochs', default=600, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=225, type=int,
+parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 225)')
 parser.add_argument('--lr', '--learning-rate', default=0.003, type=float,
                     metavar='LR', help='initial learning rate')
@@ -197,11 +197,8 @@ def main():
    
     labelset = dataloader(root=data_dir, split='label', download=True, transform=transform_train, boundary=args.boundary)
     unlabelset = dataloader(root=data_dir, split='unlabel', download=True, transform=transform_train, boundary=args.boundary)
-    label_size = len(labelset)
-    unlabel_size = len(unlabelset)
-    iter_per_epoch = int(ceil(float(label_size + unlabel_size)/args.batch_size))
-    batch_size_label = int(ceil(float(label_size) / iter_per_epoch))
-    batch_size_unlabel = int(ceil(float(unlabel_size) / iter_per_epoch))
+    batch_size_label = args.batch_size//2
+    batch_size_unlabel = args.batch_size//2
     if args.model == 'baseline': batch_size_label=args.batch_size
 
     label_loader = data.DataLoader(labelset, 
@@ -218,10 +215,6 @@ def main():
         pin_memory=True)
     unlabel_iter = iter(unlabel_loader) 
 
-    if args.model != 'baseline':
-        if len(label_iter) != len(unlabel_iter):
-            print('Number of label and unlabel iteration is not match, %d, %d'%(len(label_iter) ,len(unlabel_iter)))
-            assert(False)
     print("Batch size (label): ", batch_size_label)
     print("Batch size (unlabel): ", batch_size_unlabel)
 
@@ -241,9 +234,9 @@ def main():
         pin_memory=True)
 
     # deifine loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss(size_average=False).cuda()
-    criterion_mse = nn.MSELoss(size_average=False).cuda()
-    criterion_kl = nn.KLDivLoss(size_average=False).cuda()    
+    criterion = nn.CrossEntropyLoss().cuda()
+    criterion_mse = nn.MSELoss().cuda()
+    criterion_kl = nn.KLDivLoss().cuda()    
     criterion_l1 = nn.L1Loss(size_average=False).cuda()
    
     criterions = (criterion, criterion_mse, criterion_kl, criterion_l1)

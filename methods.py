@@ -22,6 +22,8 @@ def train_sup(label_loader, model, criterions, optimizer, epoch, args):
         input, target, _ = next(label_iter)
         # measure data loading time
         data_time.update(time.time() - end)
+        sl = input.shape
+        batch_size = sl[0]
         target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
@@ -79,12 +81,16 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
 
     label_iter = iter(label_loader)     
     unlabel_iter = iter(unlabel_loader)     
-    len_iter = len(label_iter)
-    for i in range(len(label_iter)):
+    len_iter = len(unlabel_iter)
+    for i in range(len_iter):
         # set weights for the consistency loss
         weight_cl = cal_consistency_weight(epoch*len_iter+i, end_ep=(args.epochs//2)*len_iter, end_w=1.0)
         
-        input, target, input1 = next(label_iter)
+        try:
+            input, target, input1 = next(label_iter)
+        except StopIteration:
+            label_iter = iter(label_loader)     
+            input, target, input1 = next(label_iter)
         input_ul, _, input1_ul = next(unlabel_iter)
         sl = input.shape
         su = input_ul.shape
@@ -107,10 +113,10 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
             output1 = model(input1_concat_var)
 
         output_label = output[:sl[0]]
-        pred = F.softmax(output)
-        pred1 = F.softmax(output1)
-        loss_ce = criterion(output_label, target_var) / float(batch_size)
-        loss_pi = criterion_mse(pred, pred1) /float(args.num_classes*batch_size)
+        pred = F.softmax(output, 1)
+        pred1 = F.softmax(output1, 1)
+        loss_ce = criterion(output_label, target_var) * float(sl[0]) / float(batch_size)
+        loss_pi = criterion_mse(pred, pred1)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
@@ -141,7 +147,7 @@ def train_pi(label_loader, unlabel_loader, model, criterions, optimizer, epoch, 
                   'LossPi {loss_pi.val:.4f} ({loss_pi.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(label_iter), batch_time=batch_time,
+                   epoch, i, len_iter, batch_time=batch_time,
                    data_time=data_time, loss=losses, loss_pi=losses_pi,
                    top1=top1, top5=top5))
     
@@ -168,13 +174,17 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
 
     label_iter = iter(label_loader)     
     unlabel_iter = iter(unlabel_loader)     
-    len_iter = len(label_iter)
-    for i in range(len(label_iter)):
+    len_iter = len(unlabel_iter)
+    for i in range(len_iter):
         # set weights for the consistency loss
         global_step = epoch * len_iter + i
         weight_cl = cal_consistency_weight(global_step, end_ep=(args.epochs//2)*len_iter, end_w=1.0)
         
-        input, target, input1 = next(label_iter)
+        try:
+            input, target, input1 = next(label_iter)
+        except StopIteration:
+            label_iter = iter(label_loader)     
+            input, target, input1 = next(label_iter)
         input_ul, _, input1_ul = next(unlabel_iter)
         sl = input.shape
         su = input_ul.shape
@@ -198,10 +208,10 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
 
         output_label = output[:sl[0]]
         output1_label = output1[:sl[0]]
-        pred = F.softmax(output)
-        pred1 = F.softmax(output1)
-        loss_ce = criterion(output_label, target_var)/float(batch_size)
-        loss_cl = criterion_mse(pred, pred1)/float(args.num_classes*batch_size)
+        pred = F.softmax(output, 1)
+        pred1 = F.softmax(output1, 1)
+        loss_ce = criterion(output_label, target_var) * float(sl[0]) /float(batch_size)
+        loss_cl = criterion_mse(pred, pred1)
 
         reg_l1 = cal_reg_l1(model, criterion_l1)
 
@@ -238,7 +248,7 @@ def train_mt(label_loader, unlabel_loader, model, model_teacher, criterions, opt
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})\t'
                   'PrecT@1 {top1_t.val:.3f} ({top1_t.avg:.3f})\t'
                   'PrecT@5 {top5_t.val:.3f} ({top5_t.avg:.3f})'.format(
-                   epoch, i, len(label_iter), batch_time=batch_time,
+                   epoch, i, len_iter, batch_time=batch_time,
                    data_time=data_time, loss=losses, loss_cl=losses_cl,
                    top1=top1, top5=top5, top1_t=top1_t, top5_t=top5_t))
     
@@ -268,7 +278,7 @@ def validate(val_loader, model, criterions, args, mode = 'valid'):
             # compute output
             output = model(input_var)
             softmax = torch.nn.LogSoftmax(dim=1)(output)
-            loss = criterion(output, target_var)/float(batch_size)
+            loss = criterion(output, target_var)
  
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
