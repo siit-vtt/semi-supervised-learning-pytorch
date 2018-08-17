@@ -41,7 +41,7 @@ parser.add_argument('--dataset', '-d', metavar='DATASET', default='cifar10_zca',
                     help='dataset: '+' (default: cifar10)', choices=['cifar10', 'cifar10_zca', 'svhn'])
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=600, type=int, metavar='N',
+parser.add_argument('--epochs', default=1200, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -205,14 +205,14 @@ def main():
         batch_size=batch_size_label, 
         shuffle=True, 
         num_workers=args.workers,
-        pin_memory=False)
+        pin_memory=True)
     label_iter = iter(label_loader) 
 
     unlabel_loader = data.DataLoader(unlabelset, 
         batch_size=batch_size_unlabel, 
         shuffle=True, 
         num_workers=args.workers,
-        pin_memory=False)
+        pin_memory=True)
     unlabel_iter = iter(unlabel_loader) 
 
     print("Batch size (label): ", batch_size_label)
@@ -224,14 +224,14 @@ def main():
         batch_size=args.batch_size, 
         shuffle=False, 
         num_workers=args.workers,
-        pin_memory=False)
+        pin_memory=True)
 
     testset = dataloader(root=data_dir, split='test', download=True, transform=transform_test)
     test_loader = data.DataLoader(testset, 
         batch_size=args.batch_size, 
         shuffle=False, 
         num_workers=args.workers,
-        pin_memory=False)
+        pin_memory=True)
 
     # deifine loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss(size_average=False).cuda()
