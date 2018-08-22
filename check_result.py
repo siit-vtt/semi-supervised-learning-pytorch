@@ -5,8 +5,8 @@ import argparse
 parser = argparse.ArgumentParser(description='PyTorch Places365 Training')
 parser.add_argument('--fdir', default='ckpt', type=str, metavar='PATH',
                     help='path to load checkpoint (default: ckpt)')
-parser.add_argument('--fname', default='preresnet', type=str, metavar='PATH',
-                    help='checkpoint filename (default: preresnet)')
+parser.add_argument('--fname', default='wideresnet', type=str, metavar='PATH',
+                    help='checkpoint filename (default: wideresnet)')
 parser.add_argument('--nckpt',default=1, type=int, help='num of checkpoints')
 parser.add_argument('--plot',default=False, type=bool, help='num of checkpoints')
 args = parser.parse_args()
@@ -31,7 +31,8 @@ for i in range(nckpt):
     best_prec1s.append(best_prec1)
 
     fname_acc = os.path.join(fdir,'accuracy%d.png'%i)
-    fname_loss = os.path.join(fdir,'losses_%d.png'%i)
+    fname_lr = os.path.join(fdir,'lr%d.png'%i)
+    fname_loss = os.path.join(fdir,'losses%d.png'%i)
     acc1_tr = checkpoint['acc1_tr']
     acc1_val = checkpoint['acc1_val']
     acc1_te = checkpoint['acc1_test']
@@ -47,20 +48,29 @@ for i in range(nckpt):
     if(args.plot):
         import matplotlib.pyplot as plt
         fig = plt.figure()
-        ax = plt.subplot(2,1,1) 
+        ax = plt.subplot(1,1,1) 
         ax.plot(acc1_tr, label='train_acc1')
         ax.plot(acc1_val, label='val_acc1')
         ax.plot(acc1_te, label='test_acc1')
         ax.legend()
         ax.grid(linestyle='--')
-        ax = plt.subplot(2,1,2) 
-        ax.plot(learning_rate, label='lr')
-        ax.plot(weights_cl, label='w_cl')
-        ax.legend()
-        ax.grid(linestyle='--')
         plt.savefig(fname_acc)
         #plt.show()
         plt.clf()
+
+        fig = plt.figure()
+        ax = plt.subplot(2,1,1) 
+        ax.plot(learning_rate, label='lr')
+        ax.legend()
+        ax.grid(linestyle='--')
+        ax = plt.subplot(2,1,2) 
+        ax.plot(weights_cl, label='w_cl')
+        ax.legend()
+        ax.grid(linestyle='--')
+        plt.savefig(fname_lr)
+        #plt.show()
+        plt.clf()
+
 
         fig = plt.figure()
         ax = plt.subplot(2,1,1) 
