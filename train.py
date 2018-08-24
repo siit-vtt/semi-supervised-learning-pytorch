@@ -292,7 +292,7 @@ def main():
         losses_test.append(loss_test)
         if args.model != 'baseline': 
             losses_cl_tr.append(loss_cl_tr)
-        elif args.model=='mt':
+        if args.model=='mt':
             acc1_t_tr.append(prec1_t_tr)
             acc1_t_val.append(prec1_t_val)
             acc1_t_test.append(prec1_t_test)
